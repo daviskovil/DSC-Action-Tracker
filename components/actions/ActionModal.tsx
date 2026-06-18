@@ -6,6 +6,62 @@ import { createClient } from "@/lib/supabase/client";
 import { logActivity } from "@/lib/logActivity";
 import type { Action } from "@/lib/types";
 
+// ── Mini formatting toolbar ──────────────────────────────────────────────────
+function FormatToolbar({ textareaRef, value, onChange }: {
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  onChange: (v: string | null) => void;
+}) {
+  function wrapSelection(before: string, after: string, placeholder = "text") {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const sel = value.substring(start, end) || placeholder;
+    const newVal = value.substring(0, start) + before + sel + after + value.substring(end);
+    onChange(newVal);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + before.length, start + before.length + sel.length);
+    });
+  }
+
+  function prefixLine(prefix: string) {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    if (value.substring(lineStart).startsWith(prefix)) {
+      const newVal = value.substring(0, lineStart) + value.substring(lineStart + prefix.length);
+      onChange(newVal || null);
+      requestAnimationFrame(() => { el.focus(); el.setSelectionRange(Math.max(0, start - prefix.length), Math.max(0, start - prefix.length)); });
+    } else {
+      const newVal = value.substring(0, lineStart) + prefix + value.substring(lineStart);
+      onChange(newVal);
+      requestAnimationFrame(() => { el.focus(); el.setSelectionRange(start + prefix.length, start + prefix.length); });
+    }
+  }
+
+  const btn = "inline-flex items-center justify-center px-2 py-1 rounded border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors";
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-1.5">
+      <button type="button" className={btn} title="Bullet" onClick={() => prefixLine("• ")}>• Bullet</button>
+      <button type="button" className={btn} title="Numbered" onClick={() => prefixLine("1. ")}>1. Number</button>
+      <button type="button" className={`${btn} font-bold`} title="Bold" onClick={() => wrapSelection("**", "**")}>B</button>
+      <button type="button" className={`${btn} italic`} title="Italic" onClick={() => wrapSelection("_", "_")}>I</button>
+      <button type="button" className={btn} title="Divider" onClick={() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        const pos = el.selectionStart;
+        const newVal = value.substring(0, pos) + "\n---\n" + value.substring(pos);
+        onChange(newVal);
+        requestAnimationFrame(() => { el.focus(); el.setSelectionRange(pos + 5, pos + 5); });
+      }}>── Line</button>
+    </div>
+  );
+}
+
 interface Props {
   action?: Action | null;
   ownerNames: string[];
@@ -21,7 +77,7 @@ const BLANK: Omit<Action, "id" | "created_at" | "updated_at" | "created_by"> = {
   owners: [],
   secondary_owners: [],
   due_date: null,
-  status: "Not Started",
+  status: "Pending",
   percent_complete: 0,
   priority: "Medium",
   notes: null,
@@ -34,6 +90,7 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   // No click-outside or Escape to close — form data should never be lost accidentally.
   // Use the × button or Cancel to dismiss.
@@ -207,11 +264,17 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
           </Field>
 
           <Field label="Notes">
+            <FormatToolbar
+              textareaRef={notesRef}
+              value={form.notes ?? ""}
+              onChange={(v) => set("notes", v)}
+            />
             <textarea
+              ref={notesRef}
               value={form.notes ?? ""}
               onChange={(e) => set("notes", e.target.value || null)}
-              className={`${inputCls} resize-none h-20`}
-              placeholder="Optional notes…"
+              className={`${inputCls} resize-none h-24 font-mono text-xs`}
+              placeholder={"• Key context\n• Dependencies\n• Definition of done"}
             />
           </Field>
 

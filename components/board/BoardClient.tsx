@@ -10,13 +10,14 @@ import ActionModal from "@/components/actions/ActionModal";
 interface Props {
   initialActions: Action[];
   ownerNames: string[];
+  role: string;
 }
 
 function shortBucket(b: string) {
   return b.replace(/^Bucket \d+ - /, "");
 }
 
-export default function BoardClient({ initialActions, ownerNames }: Props) {
+export default function BoardClient({ initialActions, ownerNames, role }: Props) {
   const [actions, setActions] = useState<Action[]>(initialActions);
   const [selectedAction, setSelectedAction] = useState<Action | null>(null);
   const [filterBucket, setFilterBucket] = useState("All");
@@ -90,8 +91,10 @@ export default function BoardClient({ initialActions, ownerNames }: Props) {
       <ActionTable
         actions={filtered}
         allActions={actions}
+        role={role}
         onRowClick={setSelectedAction}
         onActionUpdated={handleActionUpdated}
+        onActionDeleted={handleActionDeleted}
       />
 
       {selectedAction && (

@@ -5,8 +5,30 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "DSC Action Tracker",
-  description: "DataSkate Sales Support Center — internal action tracker",
+  title: "DSC Action Tracker · DataSkate",
+  description: "The DataSkate Sales Support Center action board — track every action, every owner, every deadline across AE Engagement, Client Outreach, and Content workstreams.",
+  metadataBase: new URL("https://dsc.dataskate.online"),
+  openGraph: {
+    title: "DSC Action Tracker · DataSkate",
+    description: "The DataSkate Sales Support Center action board — track every action, every owner, every deadline.",
+    url: "https://dsc.dataskate.online",
+    siteName: "DSC Action Tracker",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "DSC Action Tracker — DataSkate Sales Support Center",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DSC Action Tracker · DataSkate",
+    description: "The DataSkate Sales Support Center action board — track every action, every owner, every deadline.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({

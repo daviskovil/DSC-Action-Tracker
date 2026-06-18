@@ -542,7 +542,7 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm" style={{ overflowX: "auto" }}>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         {/* Active filter chips */}
         {activeFilterCount > 0 && (
           <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2 flex-wrap bg-brand-50/40">
@@ -577,8 +577,8 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table style={{ borderCollapse: "collapse", fontSize: "13px", minWidth: "1600px" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed", width: "100%", minWidth: "1260px" }}>
             <thead className="sticky top-0 z-10">
               <tr style={{ background: "#f7f8fa", borderBottom: "2px solid #e2e5ea" }}>
                 {/* Checkbox column — admin only */}
@@ -593,12 +593,24 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                     />
                   </th>
                 )}
-                <th style={{ width: 40, borderRight: "1px solid #e2e5ea", padding: "10px 8px", color: "#9ca3af", fontWeight: 600, fontSize: 11, textAlign: "center" }}>#</th>
+                <th style={{ width: 36, borderRight: "1px solid #e2e5ea", padding: "10px 8px", color: "#9ca3af", fontWeight: 600, fontSize: 11, textAlign: "center" }}>#</th>
                 {COLS.map(col => {
+                  // Fixed widths for each column — controls layout with tableLayout: fixed
+                  const colWidth: Record<string, number> = {
+                    title:            260,
+                    bucket:           120,
+                    owners:           110,
+                    secondary_owners: 110,
+                    due_date:          96,
+                    status:           110,
+                    percent_complete:  60,
+                    priority:          84,
+                    notes:            190,
+                  };
                   const activeFilter = (colFilters[col.key as string] ?? []).length > 0;
                   const isOpenFilter = openFilterCol === col.key;
                   return (
-                    <th key={col.key} style={{ borderRight: "1px solid #e2e5ea", position: "relative", whiteSpace: "nowrap" }}>
+                    <th key={col.key} style={{ width: colWidth[col.key as string] ?? 100, borderRight: "1px solid #e2e5ea", position: "relative", overflow: "hidden" }}>
                       <div style={{ display: "flex", alignItems: "center", padding: "10px 12px", gap: 4 }}>
                         <button
                           onClick={() => handleSort(col.key)}
@@ -633,7 +645,7 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                     </th>
                   );
                 })}
-                <th style={{ width: 48, borderLeft: "1px solid #e2e5ea", padding: "10px 8px", fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Task</th>
+                <th style={{ width: 44, borderLeft: "1px solid #e2e5ea", padding: "10px 8px", fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Task</th>
               </tr>
             </thead>
 
@@ -726,7 +738,7 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                           </td>
 
                           {/* Primary Owner — multi-select */}
-                          <td style={{ ...TD, position: "relative", whiteSpace: "nowrap" }}
+                          <td style={{ ...TD, position: "relative" }}
                             onClick={e => { e.stopPropagation(); setOwnersPopover(ownersPopover === action.id ? null : action.id); }}>
                             <div style={{ cursor: "pointer", display: "flex", flexWrap: "wrap", gap: 3 }}>
                               {action.owners.length > 0
@@ -770,7 +782,7 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                           </td>
 
                           {/* Secondary Owner — multi-select */}
-                          <td style={{ ...TD, position: "relative", whiteSpace: "nowrap" }}
+                          <td style={{ ...TD, position: "relative" }}
                             onClick={e => { e.stopPropagation(); setOwnersPopover(ownersPopover === `sec-${action.id}` ? null : `sec-${action.id}`); }}>
                             <div style={{ cursor: "pointer", display: "flex", flexWrap: "wrap", gap: 3 }}>
                               {(action.secondary_owners ?? []).length > 0

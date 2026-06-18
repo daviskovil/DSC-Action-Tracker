@@ -295,16 +295,15 @@ type ColFilter = {
 };
 
 const COLS: ColFilter[] = [
-  { key: "month",            label: "Month",    filterable: true,  filterValues: a => [...new Set(a.map(x => x.month))].sort((x,y) => MONTH_ORDER.indexOf(x) - MONTH_ORDER.indexOf(y)) },
-  { key: "title",            label: "Action",   filterable: false },
-  { key: "bucket",           label: "Workstream", filterable: true,  filterValues: () => BUCKETS.map(b => b) },
-  { key: "owners",           label: "Primary Owner", filterable: true, filterValues: () => ALL_OWNERS },
-  { key: "secondary_owners", label: "Secondary Owner", filterable: true, filterValues: () => ALL_OWNERS },
-  { key: "due_date",         label: "Due Date", filterable: false },
-  { key: "status",           label: "Status",   filterable: true,  filterValues: () => [...STATUSES] },
-  { key: "percent_complete", label: "%",        filterable: false },
-  { key: "priority",         label: "Priority", filterable: true,  filterValues: () => [...PRIORITIES] },
-  { key: "notes",            label: "Status Notes", filterable: false },
+  { key: "title",            label: "Action",         filterable: false },
+  { key: "bucket",           label: "Workstream",     filterable: true,  filterValues: () => BUCKETS.map(b => b) },
+  { key: "owners",           label: "Primary Owner",  filterable: true,  filterValues: () => ALL_OWNERS },
+  { key: "secondary_owners", label: "Secondary Owner",filterable: true,  filterValues: () => ALL_OWNERS },
+  { key: "due_date",         label: "Due Date",       filterable: false },
+  { key: "status",           label: "Status",         filterable: true,  filterValues: () => [...STATUSES] },
+  { key: "percent_complete", label: "%",              filterable: false },
+  { key: "priority",         label: "Priority",       filterable: true,  filterValues: () => [...PRIORITIES] },
+  { key: "notes",            label: "Status Notes",   filterable: false },
 ];
 
 function FilterDropdown({ col, allActions, selected, onChange, onClose }: {
@@ -415,12 +414,17 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
     setEditingCell(null);
     const current = (action as unknown as Record<string, unknown>)[field];
     if (value === current || (value === "" && current == null)) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("actions")
       .update({ [field]: value === "" ? null : value, updated_at: new Date().toISOString() })
       .eq("id", action.id)
       .select()
       .single();
+    if (error) {
+      console.error("Save failed:", error.message);
+      alert(`Save failed: ${error.message}`);
+      return;
+    }
     if (data) {
       onActionUpdated(data as Action);
       logActivity("action_updated", `Updated "${action.title}" — ${field} changed to "${value}"`, { action_id: action.id, field });
@@ -690,19 +694,6 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
 
                           {/* # */}
                           <td style={{ ...TDc, width: 40, color: "#c4c9d4", fontSize: 11, fontFamily: "monospace" }}>{idx + 1}</td>
-
-                          {/* Month */}
-                          <td style={TD} onClick={() => startEdit(action, "month")}>
-                            {isEditing(action.id, "month") ? (
-                              <select autoFocus value={editValue}
-                                onChange={e => { setEditValue(e.target.value); saveField(action, "month", e.target.value); }}
-                                className="text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white">
-                                {MONTH_ORDER.slice(5).map(m => <option key={m}>{m}</option>)}
-                              </select>
-                            ) : (
-                              <span style={{ fontSize: 12, color: "#6b7280", cursor: "pointer", whiteSpace: "nowrap" }}>{action.month}</span>
-                            )}
-                          </td>
 
                           {/* Title */}
                           <td style={{ ...TD, minWidth: 220, position: "relative" }} onClick={() => !titlePopover && setTitlePopover(action.id)}>

@@ -37,16 +37,16 @@ export default function OGImage() {
 
           {/* Logo — real DataSkate icon + wordmark */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 52 }}>
-            {/* Actual DataSkate icon paths from SVG (white replaces dark, red stays red) */}
-            <svg width="52" height="52" viewBox="48 215 68 54" xmlns="http://www.w3.org/2000/svg">
-              {/* Red upper curve */}
+            {/* Actual DataSkate icon paths from DataSkate-logo-Final-02.svg */}
+            <svg width="58" height="50" viewBox="40 226 112 96" xmlns="http://www.w3.org/2000/svg">
+              {/* Red upper curve (cls-1) */}
               <path
-                d="m81.44,223.99v-8.6c15.1,0,26.5,7.09,26.5,16.48s-11.39,16.48-26.5,16.48v-8.6c10.92,0,17.9-4.66,17.9-7.88s-6.97-7.88-17.9-7.88Z"
+                d="m94.75,245.73v-16.8c29.51,0,51.77,13.84,51.77,32.2s-22.26,32.2-51.77,32.2v-16.8c21.34,0,34.97-9.11,34.97-15.4s-13.62-15.4-34.97-15.4Z"
                 fill="#ed1c24"
               />
-              {/* White lower curve */}
+              {/* White lower curve (cls-2, dark replaced with white for dark bg) */}
               <path
-                d="m81.44,251.55v8.6c-15.1,0-26.5-7.09-26.5-16.48s11.39-16.48,26.5-16.48v8.6c10.92,0,17.9,4.66,17.9,7.88s-6.97,7.88-17.9,7.88Z"
+                d="m94.75,299.58v16.8c-29.51,0-51.77-13.84-51.77-32.2s22.26-32.2,51.77-32.2v16.8c-21.34,0-34.97,9.11-34.97,15.4s13.62,15.4,34.97,15.4Z"
                 fill="#ffffff"
               />
             </svg>

@@ -35,17 +35,25 @@ export default function OGImage() {
         {/* Left content */}
         <div style={{ display: "flex", flexDirection: "column", padding: "64px 80px", flex: 1, position: "relative" }}>
 
-          {/* Logo wordmark */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 56 }}>
-            {/* Arrow icon matching DataSkate logo */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36 }}>
-              <svg width="36" height="36" viewBox="0 0 36 36">
-                <path d="M8 18 L20 8 L20 14 L28 14 L28 22 L20 22 L20 28 Z" fill="#E30613" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline" }}>
-              <span style={{ fontSize: 26, fontWeight: 800, color: "white", letterSpacing: "-1px" }}>data</span>
-              <span style={{ fontSize: 26, fontWeight: 300, color: "white", letterSpacing: "-1px" }}>skate</span>
+          {/* Logo — real DataSkate icon + wordmark */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 52 }}>
+            {/* Actual DataSkate icon paths from SVG (white replaces dark, red stays red) */}
+            <svg width="52" height="52" viewBox="48 215 68 54" xmlns="http://www.w3.org/2000/svg">
+              {/* Red upper curve */}
+              <path
+                d="m81.44,223.99v-8.6c15.1,0,26.5,7.09,26.5,16.48s-11.39,16.48-26.5,16.48v-8.6c10.92,0,17.9-4.66,17.9-7.88s-6.97-7.88-17.9-7.88Z"
+                fill="#ed1c24"
+              />
+              {/* White lower curve */}
+              <path
+                d="m81.44,251.55v8.6c-15.1,0-26.5-7.09-26.5-16.48s11.39-16.48,26.5-16.48v8.6c10.92,0,17.9,4.66,17.9,7.88s-6.97,7.88-17.9,7.88Z"
+                fill="#ffffff"
+              />
+            </svg>
+            {/* Wordmark */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 0 }}>
+              <span style={{ fontSize: 32, fontWeight: 800, color: "white", letterSpacing: "-1px", lineHeight: 1 }}>data</span>
+              <span style={{ fontSize: 32, fontWeight: 300, color: "#ed1c24", letterSpacing: "-1px", lineHeight: 1 }}>skate</span>
             </div>
           </div>
 

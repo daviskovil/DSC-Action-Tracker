@@ -4,6 +4,7 @@ export interface Action {
   title: string;
   bucket: string;
   owners: string[];
+  secondary_owners: string[];
   due_date: string | null;
   status: string;
   percent_complete: number;

@@ -1,262 +1,706 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { isAfter, parseISO, startOfToday, format } from "date-fns";
-import { BUCKET_BADGE, STATUS_COLORS, PRIORITY_COLORS, STATUSES } from "@/lib/constants";
+import { BUCKET_BADGE, STATUS_COLORS, PRIORITY_COLORS, STATUSES, BUCKETS, PRIORITIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import type { Action } from "@/lib/types";
 
 type SortKey = keyof Action;
-type SortDir = "asc" | "desc";
 
 interface Props {
   actions: Action[];
+  allActions: Action[]; // full unfiltered set, for building filter option lists
   onRowClick: (action: Action) => void;
   onActionUpdated: (action: Action) => void;
 }
 
-const COLS = [
-  { key: "month" as SortKey,            label: "Month",     width: "w-20"   },
-  { key: "title" as SortKey,            label: "Action",    width: "min-w-[240px]" },
-  { key: "bucket" as SortKey,           label: "Bucket",    width: "w-36"   },
-  { key: "owners" as SortKey,           label: "Owner(s)",  width: "w-32"   },
-  { key: "due_date" as SortKey,         label: "Due Date",  width: "w-28"   },
-  { key: "status" as SortKey,           label: "Status",    width: "w-32"   },
-  { key: "percent_complete" as SortKey, label: "%",         width: "w-16"   },
-  { key: "priority" as SortKey,         label: "Priority",  width: "w-24"   },
-  { key: "notes" as SortKey,            label: "Notes",     width: "min-w-[180px]" },
+const MONTH_ORDER = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const ALL_OWNERS = ["Davis","Vivek","Kailash","Sahdev","Raghuram"];
+
+// Strip "Bucket 0X - " prefix for display
+function shortBucket(b: string) {
+  return b.replace(/^Bucket \d+ - /, "");
+}
+
+type ColFilter = {
+  key: SortKey;
+  label: string;
+  filterable?: boolean;
+  filterValues?: (actions: Action[]) => string[];
+};
+
+const COLS: ColFilter[] = [
+  { key: "month",            label: "Month",    filterable: true,  filterValues: a => [...new Set(a.map(x => x.month))].sort((x,y) => MONTH_ORDER.indexOf(x) - MONTH_ORDER.indexOf(y)) },
+  { key: "title",            label: "Action",   filterable: false },
+  { key: "bucket",           label: "Workstream", filterable: true,  filterValues: () => BUCKETS.map(b => b) },
+  { key: "owners",           label: "Primary Owner", filterable: true, filterValues: () => ALL_OWNERS },
+  { key: "secondary_owners", label: "Secondary Owner", filterable: true, filterValues: () => ALL_OWNERS },
+  { key: "due_date",         label: "Due Date", filterable: false },
+  { key: "status",           label: "Status",   filterable: true,  filterValues: () => [...STATUSES] },
+  { key: "percent_complete", label: "%",        filterable: false },
+  { key: "priority",         label: "Priority", filterable: true,  filterValues: () => [...PRIORITIES] },
+  { key: "notes",            label: "Notes",    filterable: false },
 ];
 
-export default function ActionTable({ actions, onRowClick, onActionUpdated }: Props) {
+// ── Title popup component ────────────────────────────────────────────────────
+function TitlePopup({ action, onSave, onClose }: {
+  action: Action;
+  onSave: (title: string, notes: string) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(action.title);
+  const [notes, setNotes] = useState(action.notes ?? "");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onSave(title, notes);
+      }
+    }
+    function keyHandler(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", keyHandler);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", keyHandler); };
+  }, [title, notes, onSave, onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.25)" }}
+      onMouseDown={e => { if (e.target === e.currentTarget) { onSave(title, notes); } }}>
+      <div ref={ref} className="bg-white border border-gray-200 rounded-xl shadow-2xl p-4 w-[480px] max-w-[95vw]"
+        onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Edit Action</p>
+        <button onClick={() => { onSave(title, notes); onClose(); }}
+          title="Save & close"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7.586a1 1 0 01.707.293l4.414 4.414A1 1 0 0120 8.414V19a2 2 0 01-2 2z"/>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 21v-6a1 1 0 011-1h4a1 1 0 011 1v6"/>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v4a1 1 0 001 1h4"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Title */}
+      <label className="block text-xs text-gray-500 font-medium mb-1">Title</label>
+      <input
+        autoFocus
+        type="text"
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+        className="w-full text-sm font-medium border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 mb-3"
+      />
+
+      {/* Description / notes */}
+      <label className="block text-xs text-gray-500 font-medium mb-1">
+        Description / Notes
+        <span className="text-gray-400 font-normal ml-1">(supports bullet points with • or -)</span>
+      </label>
+      <textarea
+        rows={6}
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder={"• Key context or background\n• Dependencies or blockers\n• Definition of done"}
+        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none font-mono text-xs leading-relaxed"
+      />
+      <p className="text-xs text-gray-400 mt-1.5">Shift+Enter for new line · Esc to discard</p>
+    </div>
+    </div>
+  );
+}
+
+// ── Notes popup component ────────────────────────────────────────────────────
+function NotesPopup({ action, onSave, onClose }: {
+  action: Action;
+  onSave: (notes: string) => void;
+  onClose: () => void;
+}) {
+  const [notes, setNotes] = useState(action.notes ?? "");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onSave(notes);
+      }
+    }
+    function keyHandler(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", keyHandler);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", keyHandler); };
+  }, [notes, onSave, onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.25)" }}
+      onMouseDown={e => { if (e.target === e.currentTarget) { onSave(notes); } }}>
+      <div ref={ref} className="bg-white border border-gray-200 rounded-xl shadow-2xl p-4 w-[480px] max-w-[95vw]"
+        onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notes</p>
+          <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[280px]">{action.title}</p>
+        </div>
+        <button onClick={() => { onSave(notes); onClose(); }}
+          title="Save & close"
+          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7.586a1 1 0 01.707.293l4.414 4.414A1 1 0 0120 8.414V19a2 2 0 01-2 2z"/>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 21v-6a1 1 0 011-1h4a1 1 0 011 1v6"/>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v4a1 1 0 001 1h4"/>
+          </svg>
+        </button>
+      </div>
+      <textarea
+        autoFocus
+        rows={8}
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder={"• Key context or background\n• Dependencies or blockers\n• Definition of done\n• Links or references"}
+        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-y font-mono text-xs leading-relaxed"
+      />
+      <p className="text-xs text-gray-400 mt-1.5">Shift+Enter for new line · Esc to discard</p>
+    </div>
+    </div>
+  );
+}
+
+// ── Column filter dropdown ────────────────────────────────────────────────────
+function FilterDropdown({ col, allActions, selected, onChange, onClose }: {
+  col: ColFilter;
+  allActions: Action[];
+  selected: string[];
+  onChange: (vals: string[]) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const options = col.filterValues?.(allActions) ?? [];
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  function toggle(val: string) {
+    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
+  }
+
+  const displayVal = (val: string, key: SortKey) => {
+    if (key === "bucket") return shortBucket(val);
+    return val;
+  };
+
+  return (
+    <div ref={ref} className="absolute left-0 top-full mt-1 z-40 bg-white border border-gray-200 rounded-xl shadow-xl p-3 min-w-[180px]"
+      onClick={e => e.stopPropagation()}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">{col.label}</p>
+        {selected.length > 0 && (
+          <button onClick={() => onChange([])} className="text-xs text-brand-600 hover:underline font-medium">Clear</button>
+        )}
+      </div>
+      <div className="space-y-0.5 max-h-52 overflow-y-auto">
+        {options.map(val => (
+          <label key={val} className="flex items-center gap-2.5 py-1 px-1 cursor-pointer hover:bg-gray-50 rounded">
+            <input type="checkbox" checked={selected.includes(val)} onChange={() => toggle(val)}
+              className="accent-brand-600 cursor-pointer w-3.5 h-3.5 rounded" />
+            <span className="text-sm text-gray-700">{displayVal(val, col.key)}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export default function ActionTable({ actions, allActions, onRowClick, onActionUpdated }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("due_date");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [editingNotes, setEditingNotes] = useState<string | null>(null);
-  const [notesValue, setNotesValue] = useState("");
-  const [editingStatus, setEditingStatus] = useState<string | null>(null);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  const [sortDir, setSortDir] = useState<"asc"|"desc">("asc");
+  const [editingCell, setEditingCell] = useState<{id: string; field: string} | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [ownersPopover, setOwnersPopover] = useState<string | null>(null);
+  const [titlePopover, setTitlePopover] = useState<string | null>(null);
+  const [notesPopover, setNotesPopover] = useState<string | null>(null);
+  const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
+  const [openFilterCol, setOpenFilterCol] = useState<string | null>(null);
+  const [colFilters, setColFilters] = useState<Record<string, string[]>>({});
+  const ownersPopoverRef = useRef<HTMLDivElement>(null);
   const today = startOfToday();
   const supabase = createClient();
 
+  // Close owners popover on outside click
   useEffect(() => {
-    if (editingNotes && notesRef.current) notesRef.current.focus();
-  }, [editingNotes]);
+    if (!ownersPopover) return;
+    function handler(e: MouseEvent) {
+      if (ownersPopoverRef.current && !ownersPopoverRef.current.contains(e.target as Node)) {
+        setOwnersPopover(null);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ownersPopover]);
 
   function handleSort(key: SortKey) {
-    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
   }
 
-  const sorted = [...actions].sort((a, b) => {
-    const av = a[sortKey] ?? "";
-    const bv = b[sortKey] ?? "";
-    const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
-    return sortDir === "asc" ? cmp : -cmp;
+  function toggleMonth(month: string) {
+    setCollapsedMonths(prev => {
+      const next = new Set(prev);
+      next.has(month) ? next.delete(month) : next.add(month);
+      return next;
+    });
+  }
+
+  function startEdit(action: Action, field: string) {
+    if (field === "title") { setTitlePopover(action.id); return; }
+    const val = (action as unknown as Record<string, unknown>)[field];
+    setEditingCell({ id: action.id, field });
+    setEditValue(val == null ? "" : String(val));
+  }
+
+  async function saveField(action: Action, field: string, value: string | number | null) {
+    setEditingCell(null);
+    const current = (action as unknown as Record<string, unknown>)[field];
+    if (value === current || (value === "" && current == null)) return;
+    const { data } = await supabase
+      .from("actions")
+      .update({ [field]: value === "" ? null : value, updated_at: new Date().toISOString() })
+      .eq("id", action.id)
+      .select()
+      .single();
+    if (data) onActionUpdated(data as Action);
+  }
+
+  const saveNotes = useCallback((action: Action) => async (notes: string) => {
+    setNotesPopover(null);
+    if (notes === (action.notes ?? "")) return;
+    const { data } = await supabase.from("actions")
+      .update({ notes: notes || null, updated_at: new Date().toISOString() })
+      .eq("id", action.id).select().single();
+    if (data) onActionUpdated(data as Action);
+  }, [supabase, onActionUpdated]);
+
+  const saveTitleAndNotes = useCallback((action: Action) => async (title: string, notes: string) => {
+    setTitlePopover(null);
+    const updates: Record<string, string | null> = { updated_at: new Date().toISOString() };
+    if (title !== action.title) updates.title = title;
+    if (notes !== (action.notes ?? "")) updates.notes = notes || null;
+    if (Object.keys(updates).length <= 1) return;
+    const { data } = await supabase.from("actions").update(updates).eq("id", action.id).select().single();
+    if (data) onActionUpdated(data as Action);
+  }, [supabase, onActionUpdated]);
+
+  async function saveOwners(action: Action, owners: string[]) {
+    const { data } = await supabase
+      .from("actions")
+      .update({ owners, updated_at: new Date().toISOString() })
+      .eq("id", action.id)
+      .select()
+      .single();
+    if (data) onActionUpdated(data as Action);
+  }
+
+  function toggleOwner(action: Action, owner: string) {
+    const next = action.owners.includes(owner)
+      ? action.owners.filter(o => o !== owner)
+      : [...action.owners, owner];
+    saveOwners(action, next);
+  }
+
+  // Apply column-level filters on top of the passed-in actions
+  const filtered = actions.filter(action => {
+    for (const [field, vals] of Object.entries(colFilters)) {
+      if (!vals.length) continue;
+      if (field === "owners") {
+        if (!vals.some(v => action.owners.includes(v))) return false;
+      } else {
+        const av = String((action as unknown as Record<string, unknown>)[field] ?? "");
+        if (!vals.includes(av)) return false;
+      }
+    }
+    return true;
   });
 
-  async function saveNotes(action: Action) {
-    const trimmed = notesValue.trim() || null;
-    if (trimmed === action.notes) { setEditingNotes(null); return; }
-    const { data } = await supabase
-      .from("actions").update({ notes: trimmed, updated_at: new Date().toISOString() })
-      .eq("id", action.id).select().single();
-    if (data) onActionUpdated(data as Action);
-    setEditingNotes(null);
+  // Group & sort
+  const grouped = filtered.reduce<Record<string, Action[]>>((acc, a) => {
+    (acc[a.month] ??= []).push(a);
+    return acc;
+  }, {});
+
+  const sortedMonths = Object.keys(grouped).sort((a, b) => {
+    const ai = MONTH_ORDER.indexOf(a);
+    const bi = MONTH_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  function sortRows(list: Action[]) {
+    return [...list].sort((a, b) => {
+      const av = (a as unknown as Record<string, unknown>)[sortKey] ?? "";
+      const bv = (b as unknown as Record<string, unknown>)[sortKey] ?? "";
+      const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
   }
 
-  async function saveStatus(action: Action, newStatus: string) {
-    setEditingStatus(null);
-    if (newStatus === action.status) return;
-    const pct = newStatus === "Done" ? 100 : newStatus === "Not Started" ? 0 : action.percent_complete;
-    const { data } = await supabase
-      .from("actions").update({ status: newStatus, percent_complete: pct, updated_at: new Date().toISOString() })
-      .eq("id", action.id).select().single();
-    if (data) onActionUpdated(data as Action);
-  }
+  const isEditing = (id: string, field: string) =>
+    editingCell?.id === id && editingCell?.field === field;
+
+  const activeFilterCount = Object.values(colFilters).filter(v => v.length > 0).length;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+      {/* Active filter chips */}
+      {activeFilterCount > 0 && (
+        <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2 flex-wrap bg-brand-50/40">
+          <span className="text-xs text-gray-500 font-medium">Filtered by:</span>
+          {Object.entries(colFilters).map(([field, vals]) => vals.length > 0 && (
+            <span key={field} className="flex items-center gap-1 text-xs bg-white border border-brand-200 text-brand-700 rounded-full px-2.5 py-0.5 font-medium">
+              {COLS.find(c => c.key === field)?.label}: {vals.map(v => field === "bucket" ? shortBucket(v) : v).join(", ")}
+              <button onClick={() => setColFilters(f => ({ ...f, [field]: [] }))} className="ml-0.5 text-brand-400 hover:text-brand-700">×</button>
+            </span>
+          ))}
+          <button onClick={() => setColFilters({})} className="text-xs text-gray-400 hover:text-gray-700 ml-1">Clear all</button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
+        <table className="w-full" style={{ borderCollapse: "collapse", fontSize: "13px" }}>
           {/* Header */}
-          <thead>
-            <tr className="bg-gray-50 border-b-2 border-gray-200">
-              <th className="w-10 px-3 py-3 text-left text-xs font-semibold text-gray-400 border-r border-gray-200">
-                #
-              </th>
-              {COLS.map((col) => (
-                <th
-                  key={col.key}
-                  onClick={() => handleSort(col.key)}
-                  className={`${col.width} px-3 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide cursor-pointer hover:bg-gray-100 transition-colors select-none border-r border-gray-200 last:border-r-0`}
-                >
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    {sortKey === col.key ? (
-                      <span className="text-brand-500">{sortDir === "asc" ? "↑" : "↓"}</span>
-                    ) : (
-                      <span className="text-gray-300">↕</span>
+          <thead className="sticky top-0 z-10">
+            <tr style={{ background: "#f7f8fa", borderBottom: "2px solid #e2e5ea" }}>
+              <th style={{ width: 40, borderRight: "1px solid #e2e5ea", padding: "10px 8px", color: "#9ca3af", fontWeight: 600, fontSize: 11, textAlign: "center" }}>#</th>
+              {COLS.map(col => {
+                const activeFilter = (colFilters[col.key as string] ?? []).length > 0;
+                const isOpenFilter = openFilterCol === col.key;
+                return (
+                  <th key={col.key} style={{ borderRight: "1px solid #e2e5ea", position: "relative", whiteSpace: "nowrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", padding: "10px 12px", gap: 4 }}>
+                      <button
+                        onClick={() => handleSort(col.key)}
+                        style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em", cursor: "pointer", background: "none", border: "none", padding: 0, flex: 1 }}
+                      >
+                        {col.label}
+                        {sortKey === col.key
+                          ? <span style={{ color: "#E30613", marginLeft: 2 }}>{sortDir === "asc" ? "↑" : "↓"}</span>
+                          : <span style={{ color: "#d1d5db", marginLeft: 2 }}>↕</span>}
+                      </button>
+                      {col.filterable && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setOpenFilterCol(isOpenFilter ? null : col.key as string); }}
+                          title={`Filter by ${col.label}`}
+                          style={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, border: "none", cursor: "pointer", background: activeFilter ? "#fee2e2" : "transparent", color: activeFilter ? "#E30613" : "#9ca3af" }}
+                        >
+                          <svg width="11" height="11" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L13 10.414V17a1 1 0 01-.553.894l-4-2A1 1 0 018 15v-4.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    {isOpenFilter && col.filterable && (
+                      <FilterDropdown
+                        col={col}
+                        allActions={allActions}
+                        selected={colFilters[col.key as string] ?? []}
+                        onChange={vals => setColFilters(f => ({ ...f, [col.key as string]: vals }))}
+                        onClose={() => setOpenFilterCol(null)}
+                      />
                     )}
-                  </div>
-                </th>
-              ))}
-              <th className="w-16 px-3 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                Task
-              </th>
+                  </th>
+                );
+              })}
+              <th style={{ width: 48, borderLeft: "1px solid #e2e5ea", padding: "10px 8px", fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Task</th>
             </tr>
           </thead>
 
           <tbody>
-            {sorted.map((action, idx) => {
-              const isOverdue = action.due_date && action.status !== "Done" && isAfter(today, parseISO(action.due_date));
-              const isEditingThisNotes = editingNotes === action.id;
-              const isEditingThisStatus = editingStatus === action.id;
-              const rowBg = idx % 2 === 0 ? "bg-white" : "bg-gray-50/50";
+            {sortedMonths.map(month => {
+              const rows = sortRows(grouped[month]);
+              const collapsed = collapsedMonths.has(month);
+              const doneCount = rows.filter(a => a.status === "Done").length;
+              const pct = rows.length ? Math.round((doneCount / rows.length) * 100) : 0;
 
               return (
-                <tr
-                  key={action.id}
-                  className={`${rowBg} border-b border-gray-100 hover:bg-blue-50/30 transition-colors group ${
-                    isOverdue ? "border-l-[3px] border-l-red-400" : ""
-                  }`}
-                >
-                  {/* Row number */}
-                  <td className="px-3 py-2.5 text-xs text-gray-300 border-r border-gray-100 font-mono">
-                    {idx + 1}
-                  </td>
-
-                  {/* Month */}
-                  <td className="px-3 py-2.5 border-r border-gray-100 whitespace-nowrap">
-                    <span className="text-xs font-medium text-gray-500">{action.month}</span>
-                  </td>
-
-                  {/* Action title */}
-                  <td className="px-3 py-2.5 border-r border-gray-100">
-                    <p className={`text-sm font-medium leading-snug ${isOverdue ? "text-red-700" : "text-gray-900"}`}>
-                      {action.title}
-                    </p>
-                    {isOverdue && (
-                      <span className="text-xs text-red-500 font-medium">⚠ Overdue</span>
-                    )}
-                  </td>
-
-                  {/* Bucket */}
-                  <td className="px-3 py-2.5 border-r border-gray-100 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${BUCKET_BADGE[action.bucket] ?? ""}`}>
-                      {action.bucket.replace(/^Bucket 0(\d) - /, "B$1 · ")}
-                    </span>
-                  </td>
-
-                  {/* Owners */}
-                  <td className="px-3 py-2.5 border-r border-gray-100">
-                    <div className="flex flex-wrap gap-1">
-                      {action.owners.map((o) => (
-                        <span key={o} className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-medium">
-                          {o}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-
-                  {/* Due Date */}
-                  <td className={`px-3 py-2.5 border-r border-gray-100 whitespace-nowrap text-xs ${isOverdue ? "text-red-600 font-semibold" : "text-gray-600"}`}>
-                    {action.due_date ? format(parseISO(action.due_date), "MMM d, yyyy") : "—"}
-                  </td>
-
-                  {/* Status — inline dropdown */}
-                  <td className="px-3 py-2.5 border-r border-gray-100" onClick={(e) => e.stopPropagation()}>
-                    {isEditingThisStatus ? (
-                      <select
-                        autoFocus
-                        defaultValue={action.status}
-                        onBlur={(e) => saveStatus(action, e.target.value)}
-                        onChange={(e) => saveStatus(action, e.target.value)}
-                        className="text-xs border border-brand-400 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white w-full cursor-pointer"
-                      >
-                        {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    ) : (
-                      <button
-                        onClick={() => setEditingStatus(action.id)}
-                        title="Click to change status"
-                        className={`text-xs px-2.5 py-1 rounded-full font-medium w-full text-left flex items-center justify-between gap-1 hover:opacity-80 transition-opacity ${STATUS_COLORS[action.status] ?? ""}`}
-                      >
-                        {action.status}
-                        <svg className="w-3 h-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <React.Fragment key={month}>
+                  {/* Month group header */}
+                  <tr style={{ background: "#f0f2f5", borderTop: "2px solid #e2e5ea", borderBottom: "1px solid #e2e5ea", cursor: "pointer", userSelect: "none" }}
+                    onClick={() => toggleMonth(month)}>
+                    <td colSpan={12} style={{ padding: "8px 16px" }}>
+                      <div className="flex items-center gap-3">
+                        <svg className="w-3.5 h-3.5 text-gray-500 shrink-0" style={{ transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
-                      </button>
-                    )}
-                  </td>
-
-                  {/* % Complete */}
-                  <td className="px-3 py-2.5 border-r border-gray-100 text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className="text-xs font-semibold text-gray-700">{action.percent_complete}%</span>
-                      <div className="w-10 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${action.percent_complete === 100 ? "bg-green-500" : "bg-brand-500"}`}
-                          style={{ width: `${action.percent_complete}%` }}
-                        />
+                        <span style={{ fontWeight: 700, fontSize: 13, color: "#111827" }}>{month}</span>
+                        <span style={{ fontSize: 11, color: "#6b7280", background: "white", border: "1px solid #e2e5ea", borderRadius: 9999, padding: "1px 8px" }}>{rows.length} actions</span>
+                        <div className="flex items-center gap-2">
+                          <div style={{ width: 80, height: 5, background: "#e5e7eb", borderRadius: 9999, overflow: "hidden" }}>
+                            <div style={{ height: "100%", background: "#E30613", borderRadius: 9999, width: `${pct}%`, transition: "width 0.3s" }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: "#9ca3af" }}>{pct}% done</span>
+                        </div>
+                        {!collapsed && <span style={{ marginLeft: "auto", fontSize: 11, color: "#d1d5db" }}>click to collapse</span>}
                       </div>
-                    </div>
-                  </td>
+                    </td>
+                  </tr>
 
-                  {/* Priority */}
-                  <td className="px-3 py-2.5 border-r border-gray-100 whitespace-nowrap">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[action.priority] ?? ""}`}>
-                      {action.priority}
-                    </span>
-                  </td>
+                  {/* Data rows */}
+                  {!collapsed && rows.map((action, idx) => {
+                    const TD: React.CSSProperties = { borderBottom: "1px solid #e2e5ea", borderRight: "1px solid #e2e5ea", padding: "9px 12px", verticalAlign: "middle" };
+                    const TDc: React.CSSProperties = { ...TD, textAlign: "center" };
 
-                  {/* Notes — inline edit */}
-                  <td className="px-3 py-2.5 border-r border-gray-100" onClick={(e) => e.stopPropagation()}>
-                    {isEditingThisNotes ? (
-                      <textarea
-                        ref={notesRef}
-                        value={notesValue}
-                        onChange={(e) => setNotesValue(e.target.value)}
-                        onBlur={() => saveNotes(action)}
-                        onKeyDown={(e) => { if (e.key === "Escape") setEditingNotes(null); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveNotes(action); } }}
-                        rows={2}
-                        className="w-full text-xs border border-brand-400 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none bg-white"
-                        placeholder="Add a note… (Enter to save)"
-                      />
-                    ) : (
-                      <button
-                        onClick={() => { setEditingNotes(action.id); setNotesValue(action.notes ?? ""); }}
-                        className="w-full text-left text-xs text-gray-500 hover:text-gray-800 hover:bg-yellow-50 rounded px-1 py-0.5 transition-colors min-h-[24px] group-hover:underline-offset-2"
-                        title="Click to edit notes"
+                    return (
+                      <tr key={action.id}
+                        style={{ background: "white" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#f5f7fa")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "white")}
                       >
-                        {action.notes ? (
-                          <span className="line-clamp-2">{action.notes}</span>
-                        ) : (
-                          <span className="text-gray-300 italic">Add note…</span>
-                        )}
-                      </button>
-                    )}
-                  </td>
+                        {/* # */}
+                        <td style={{ ...TDc, width: 40, color: "#c4c9d4", fontSize: 11, fontFamily: "monospace" }}>{idx + 1}</td>
 
-                  {/* Task (open detail) */}
-                  <td className="px-3 py-2.5 text-center">
-                    <button
-                      onClick={() => onRowClick(action)}
-                      title="Open task details"
-                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
+                        {/* Month */}
+                        <td style={TD} onClick={() => startEdit(action, "month")}>
+                          {isEditing(action.id, "month") ? (
+                            <select autoFocus value={editValue}
+                              onChange={e => { setEditValue(e.target.value); saveField(action, "month", e.target.value); }}
+                              className="text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white">
+                              {MONTH_ORDER.slice(5).map(m => <option key={m}>{m}</option>)}
+                            </select>
+                          ) : (
+                            <span style={{ fontSize: 12, color: "#6b7280", cursor: "pointer", whiteSpace: "nowrap" }}>{action.month}</span>
+                          )}
+                        </td>
+
+                        {/* Title */}
+                        <td style={{ ...TD, minWidth: 220, position: "relative" }} onClick={() => !titlePopover && setTitlePopover(action.id)}>
+                          <div className="cursor-pointer group/title">
+                            <p style={{ fontSize: 13, fontWeight: 500, color: "#111827", lineHeight: 1.4 }}>{action.title}</p>
+                            {action.notes && <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }} className="line-clamp-1">{action.notes}</p>}
+                            <span className="hidden group-hover/title:inline-flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "#E30613" }}>
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                              Edit
+                            </span>
+                          </div>
+                          {titlePopover === action.id && (
+                            <TitlePopup action={action} onSave={saveTitleAndNotes(action)} onClose={() => setTitlePopover(null)} />
+                          )}
+                        </td>
+
+                        {/* Workstream */}
+                        <td style={{ ...TD, whiteSpace: "nowrap" }} onClick={() => startEdit(action, "bucket")}>
+                          {isEditing(action.id, "bucket") ? (
+                            <select autoFocus value={editValue}
+                              onChange={e => { setEditValue(e.target.value); saveField(action, "bucket", e.target.value); }}
+                              className="text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white">
+                              {BUCKETS.map(b => <option key={b} value={b}>{shortBucket(b)}</option>)}
+                            </select>
+                          ) : (
+                            <span className={`text-xs px-2.5 py-1 rounded-full border font-medium cursor-pointer hover:opacity-80 ${BUCKET_BADGE[action.bucket] ?? ""}`}>
+                              {shortBucket(action.bucket)}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Primary Owner */}
+                        <td style={{ ...TD, position: "relative", whiteSpace: "nowrap" }}
+                          onClick={e => { e.stopPropagation(); setOwnersPopover(ownersPopover === action.id ? null : action.id); }}>
+                          <div style={{ cursor: "pointer" }}>
+                            {action.owners[0]
+                              ? <span style={{ fontSize: 12, background: "#f3f4f6", color: "#374151", padding: "2px 8px", borderRadius: 9999, fontWeight: 500 }}>{action.owners[0]}</span>
+                              : <span style={{ fontSize: 12, color: "#d1d5db", fontStyle: "italic" }}>Assign…</span>
+                            }
+                          </div>
+                          {ownersPopover === action.id && (
+                            <div ref={ownersPopoverRef} className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[160px]"
+                              onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Primary Owner</p>
+                                <button onClick={() => setOwnersPopover(null)} className="text-gray-400 hover:text-gray-700">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                              </div>
+                              {[...ALL_OWNERS, "RevOps Lead", "Content Manager"].map(owner => (
+                                <label key={owner} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
+                                  <input type="radio" name={`primary-${action.id}`} checked={action.owners[0] === owner}
+                                    onChange={() => {
+                                      const updated = [owner];
+                                      saveOwners(action, updated);
+                                      setOwnersPopover(null);
+                                    }}
+                                    className="accent-brand-600 cursor-pointer" />
+                                  <span className="text-sm text-gray-700">{owner}</span>
+                                </label>
+                              ))}
+                              <label className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1 border-t border-gray-100 mt-1 pt-2">
+                                <input type="radio" name={`primary-${action.id}`} checked={!action.owners[0]}
+                                  onChange={() => { saveOwners(action, []); setOwnersPopover(null); }}
+                                  className="accent-brand-600 cursor-pointer" />
+                                <span className="text-sm text-gray-400 italic">Unassigned</span>
+                              </label>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Secondary Owner */}
+                        <td style={{ ...TD, position: "relative", whiteSpace: "nowrap" }}
+                          onClick={e => { e.stopPropagation(); setOwnersPopover(ownersPopover === `sec-${action.id}` ? null : `sec-${action.id}`); }}>
+                          <div style={{ cursor: "pointer" }}>
+                            {(action.secondary_owners ?? []).length > 0
+                              ? <span style={{ fontSize: 12, background: "#eff6ff", color: "#1d4ed8", padding: "2px 8px", borderRadius: 9999, fontWeight: 500 }}>{action.secondary_owners[0]}</span>
+                              : <span style={{ fontSize: 12, color: "#d1d5db", fontStyle: "italic" }}>Add…</span>
+                            }
+                          </div>
+                          {ownersPopover === `sec-${action.id}` && (
+                            <div ref={ownersPopoverRef} className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[160px]"
+                              onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Secondary Owner</p>
+                                <button onClick={() => setOwnersPopover(null)} className="text-gray-400 hover:text-gray-700">
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                              </div>
+                              {[...ALL_OWNERS, "RevOps Lead", "Content Manager"].map(owner => (
+                                <label key={owner} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
+                                  <input type="radio" name={`sec-${action.id}`} checked={(action.secondary_owners ?? [])[0] === owner}
+                                    onChange={() => {
+                                      supabase.from("actions").update({ secondary_owners: [owner], updated_at: new Date().toISOString() }).eq("id", action.id).select().single()
+                                        .then(({ data }) => { if (data) onActionUpdated(data as Action); });
+                                      setOwnersPopover(null);
+                                    }}
+                                    className="accent-brand-600 cursor-pointer" />
+                                  <span className="text-sm text-gray-700">{owner}</span>
+                                </label>
+                              ))}
+                              <label className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1 border-t border-gray-100 mt-1 pt-2">
+                                <input type="radio" name={`sec-${action.id}`} checked={!(action.secondary_owners ?? []).length}
+                                  onChange={() => {
+                                    supabase.from("actions").update({ secondary_owners: [], updated_at: new Date().toISOString() }).eq("id", action.id).select().single()
+                                      .then(({ data }) => { if (data) onActionUpdated(data as Action); });
+                                    setOwnersPopover(null);
+                                  }}
+                                  className="accent-brand-600 cursor-pointer" />
+                                <span className="text-sm text-gray-400 italic">None</span>
+                              </label>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Due date */}
+                        <td style={{ ...TD, whiteSpace: "nowrap" }} onClick={() => startEdit(action, "due_date")}>
+                          {isEditing(action.id, "due_date") ? (
+                            <input autoFocus type="date" value={editValue} onChange={e => setEditValue(e.target.value)}
+                              onBlur={e => saveField(action, "due_date", e.target.value || null)}
+                              className="text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white" />
+                          ) : (
+                            <span style={{ fontSize: 12, color: "#374151", cursor: "pointer" }}>
+                              {action.due_date ? format(parseISO(action.due_date), "MMM d, yyyy") : <span style={{ color: "#d1d5db", fontStyle: "italic" }}>Set date…</span>}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td style={{ ...TD, whiteSpace: "nowrap" }} onClick={() => startEdit(action, "status")}>
+                          {isEditing(action.id, "status") ? (
+                            <select autoFocus value={editValue}
+                              onChange={e => { setEditValue(e.target.value); saveField(action, "status", e.target.value); }}
+                              className="text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white">
+                              {STATUSES.map(s => <option key={s}>{s}</option>)}
+                            </select>
+                          ) : (
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium cursor-pointer inline-flex items-center gap-1 hover:opacity-80 ${STATUS_COLORS[action.status] ?? ""}`}>
+                              {action.status}
+                              <svg className="w-2.5 h-2.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* % complete */}
+                        <td style={{ ...TDc, width: 70 }} onClick={() => startEdit(action, "percent_complete")}>
+                          {isEditing(action.id, "percent_complete") ? (
+                            <input autoFocus type="number" min={0} max={100} value={editValue}
+                              onChange={e => setEditValue(e.target.value)}
+                              onBlur={e => saveField(action, "percent_complete", Number(e.target.value))}
+                              onKeyDown={e => { if (e.key === "Enter") saveField(action, "percent_complete", Number((e.target as HTMLInputElement).value)); }}
+                              className="w-14 text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white text-center" />
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, cursor: "pointer" }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{action.percent_complete}%</span>
+                              <div style={{ width: 40, height: 5, background: "#e5e7eb", borderRadius: 9999, overflow: "hidden" }}>
+                                <div style={{ height: "100%", borderRadius: 9999, background: action.percent_complete === 100 ? "#22c55e" : "#E30613", width: `${action.percent_complete}%` }} />
+                              </div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Priority */}
+                        <td style={{ ...TD, whiteSpace: "nowrap" }} onClick={() => startEdit(action, "priority")}>
+                          {isEditing(action.id, "priority") ? (
+                            <select autoFocus value={editValue}
+                              onChange={e => { setEditValue(e.target.value); saveField(action, "priority", e.target.value); }}
+                              className="text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white">
+                              {PRIORITIES.map(p => <option key={p}>{p}</option>)}
+                            </select>
+                          ) : (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-pointer hover:opacity-80 ${PRIORITY_COLORS[action.priority] ?? ""}`}>
+                              {action.priority}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Notes */}
+                        <td style={{ ...TD, position: "relative" }} onClick={() => !notesPopover && setNotesPopover(action.id)}>
+                          <div className="cursor-pointer group/notes" style={{ minWidth: 120 }}>
+                            {action.notes ? (
+                              <p style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }} className="line-clamp-2">{action.notes}</p>
+                            ) : (
+                              <span style={{ fontSize: 12, color: "#d1d5db", fontStyle: "italic" }}>Add note…</span>
+                            )}
+                            <span className="hidden group-hover/notes:inline-flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "#E30613" }}>
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                              Edit
+                            </span>
+                          </div>
+                          {notesPopover === action.id && (
+                            <NotesPopup action={action} onSave={saveNotes(action)} onClose={() => setNotesPopover(null)} />
+                          )}
+                        </td>
+
+                        {/* Task */}
+                        <td style={{ ...TDc, width: 48, borderRight: "none" }}>
+                          <button onClick={() => onRowClick(action)} title="Open full task"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
+                            style={{ color: "#9ca3af" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "#E30613"; (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#9ca3af"; (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
               );
             })}
 
-            {sorted.length === 0 && (
+            {filtered.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center">
+                <td colSpan={12} className="px-4 py-12 text-center">
                   <p className="text-gray-400 text-sm">No actions match these filters.</p>
-                  <p className="text-gray-300 text-xs mt-1">Try clearing filters or adding a new action.</p>
+                  {activeFilterCount > 0 && (
+                    <button onClick={() => setColFilters({})} className="mt-2 text-xs text-brand-600 hover:underline">Clear all filters</button>
+                  )}
                 </td>
               </tr>
             )}
@@ -264,10 +708,11 @@ export default function ActionTable({ actions, onRowClick, onActionUpdated }: Pr
         </table>
       </div>
 
-      {/* Footer count */}
       <div className="px-4 py-2 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-        <p className="text-xs text-gray-400">{sorted.length} row{sorted.length !== 1 ? "s" : ""}</p>
-        <p className="text-xs text-gray-300">Click status to change · Click notes to edit · ↗ to open task</p>
+        <p className="text-xs text-gray-400">
+          {filtered.length}{filtered.length !== actions.length ? ` of ${actions.length}` : ""} action{filtered.length !== 1 ? "s" : ""} · click any cell to edit · click outside to save
+        </p>
+        <p className="text-xs text-gray-300">↗ opens full task details</p>
       </div>
     </div>
   );

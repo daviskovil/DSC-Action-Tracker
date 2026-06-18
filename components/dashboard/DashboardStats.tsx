@@ -131,9 +131,9 @@ export default function DashboardStats({ actions }: Props) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Bucket progress */}
+        {/* Workstream progress */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-800 mb-4">Progress by Bucket</h2>
+          <h2 className="text-sm font-semibold text-gray-800 mb-4">Progress by Workstream</h2>
           <div className="space-y-4">
             {byBucket.map((b, i) => (
               <ProgressRow

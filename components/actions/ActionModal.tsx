@@ -33,13 +33,8 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
   const [confirmDelete, setConfirmDelete] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // No click-outside or Escape to close — form data should never be lost accidentally.
+  // Use the × button or Cancel to dismiss.
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -119,7 +114,6 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
   return (
     <div
       ref={overlayRef}
-      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
       className="fixed inset-0 bg-black/40 z-50 flex items-start justify-end"
     >
       <div className="bg-white h-full w-full max-w-lg shadow-2xl overflow-y-auto flex flex-col">
@@ -158,9 +152,9 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
             </Field>
           </div>
 
-          <Field label="Bucket">
+          <Field label="Workstream">
             <select value={form.bucket} onChange={(e) => set("bucket", e.target.value)} className={inputCls}>
-              {BUCKETS.map((b) => <option key={b}>{b}</option>)}
+              {BUCKETS.map((b) => <option key={b} value={b}>{b.replace(/^Bucket \d+ - /, "")}</option>)}
             </select>
           </Field>
 

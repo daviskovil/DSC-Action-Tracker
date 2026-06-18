@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BUCKETS, STATUSES, PRIORITIES, MONTHS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { logActivity } from "@/lib/logActivity";
 import type { Action } from "@/lib/types";
 
 interface Props {
@@ -81,6 +82,7 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
       if (err || !data) {
         setError(err?.message ?? "Failed to create action.");
       } else {
+        await logActivity("action_created", `Created action: "${form.title.trim()}"`, { action_id: (data as Action).id });
         onSaved(data as Action);
       }
     } else {
@@ -93,6 +95,7 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
       if (err || !data) {
         setError(err?.message ?? "Failed to save action.");
       } else {
+        await logActivity("action_updated", `Updated action: "${form.title.trim()}"`, { action_id: action!.id });
         onSaved(data as Action);
       }
     }
@@ -108,6 +111,7 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
       setError(err.message);
       setSaving(false);
     } else {
+      await logActivity("action_deleted", `Deleted action: "${action.title}"`, { action_id: action.id });
       onDeleted?.(action.id);
     }
   }

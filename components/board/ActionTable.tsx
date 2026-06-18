@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { isAfter, parseISO, startOfToday, format } from "date-fns";
 import { BUCKET_BADGE, STATUS_COLORS, PRIORITY_COLORS, STATUSES, BUCKETS, PRIORITIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { logActivity } from "@/lib/logActivity";
 import type { Action } from "@/lib/types";
 
 type SortKey = keyof Action;
@@ -279,7 +280,10 @@ export default function ActionTable({ actions, allActions, onRowClick, onActionU
       .eq("id", action.id)
       .select()
       .single();
-    if (data) onActionUpdated(data as Action);
+    if (data) {
+      onActionUpdated(data as Action);
+      logActivity("action_updated", `Updated "${action.title}" — ${field} changed to "${value}"`, { action_id: action.id, field });
+    }
   }
 
   const saveNotes = useCallback((action: Action) => async (notes: string) => {

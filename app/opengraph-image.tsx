@@ -35,15 +35,19 @@ export default function OGImage() {
         {/* Left content */}
         <div style={{ display: "flex", flexDirection: "column", padding: "64px 80px", flex: 1, position: "relative" }}>
 
-          {/* Logo — load actual wordmark PNG */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://dsc.dataskate.online/logo-wordmark.png"
-            alt="DataSkate"
-            width={160}
-            height={40}
-            style={{ marginBottom: 56, objectFit: "contain", filter: "brightness(0) invert(1)" }}
-          />
+          {/* Logo wordmark */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 56 }}>
+            {/* Arrow icon matching DataSkate logo */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36 }}>
+              <svg width="36" height="36" viewBox="0 0 36 36">
+                <path d="M8 18 L20 8 L20 14 L28 14 L28 22 L20 22 L20 28 Z" fill="#E30613" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline" }}>
+              <span style={{ fontSize: 26, fontWeight: 800, color: "white", letterSpacing: "-1px" }}>data</span>
+              <span style={{ fontSize: 26, fontWeight: 300, color: "white", letterSpacing: "-1px" }}>skate</span>
+            </div>
+          </div>
 
           {/* Label */}
           <div style={{

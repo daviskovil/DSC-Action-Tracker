@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import AddActionButton from "@/components/actions/AddActionButton";
@@ -25,14 +24,8 @@ export default async function DashboardPage() {
       {/* Header with logo */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Image
-            src="/logo.png"
-            alt="DataSkate"
-            width={120}
-            height={30}
-            className="object-contain"
-            priority
-          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="DataSkate" className="h-7 object-contain" />
           <div className="h-8 w-px bg-gray-200" />
           <div>
             <h1 className="text-xl font-bold text-gray-900">DSC Dashboard</h1>

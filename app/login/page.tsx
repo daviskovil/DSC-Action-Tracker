@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -33,13 +32,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex bg-gray-50">
       {/* Left panel — brand */}
       <div className="hidden lg:flex lg:w-1/2 bg-gray-900 flex-col items-center justify-center p-12">
-        <Image
-          src="/logo.png"
-          alt="DataSkate"
-          width={220}
-          height={56}
-          className="object-contain brightness-0 invert mb-8"
-        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="DataSkate" className="h-10 object-contain brightness-0 invert mb-8" />
         <h2 className="text-white text-2xl font-bold text-center leading-snug">
           DSC Action Tracker
         </h2>
@@ -65,7 +59,8 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <Image src="/logo.png" alt="DataSkate" width={160} height={40} className="object-contain" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="DataSkate" className="h-8 object-contain" />
           </div>
 
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>

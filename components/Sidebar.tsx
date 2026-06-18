@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -68,14 +67,8 @@ export default function Sidebar({ userName, role }: SidebarProps) {
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col shrink-0">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-100">
-        <Image
-          src="/logo.png"
-          alt="DataSkate"
-          width={140}
-          height={36}
-          className="object-contain"
-          priority
-        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="DataSkate" className="h-7 object-contain" />
         <p className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide uppercase">
           DSC Action Tracker
         </p>

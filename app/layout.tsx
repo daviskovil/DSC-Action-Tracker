@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     siteName: "DSC Action Tracker",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://dsc.dataskate.online/opengraph-image",
         width: 1200,
         height: 630,
         alt: "DSC Action Tracker — DataSkate Sales Support Center",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "DSC Action Tracker · DataSkate",
     description: "The DataSkate Sales Support Center action board — track every action, every owner, every deadline.",
-    images: ["/og-image.png"],
+    images: ["https://dsc.dataskate.online/opengraph-image"],
   },
 };
 

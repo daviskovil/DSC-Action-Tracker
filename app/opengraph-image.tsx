@@ -14,113 +14,97 @@ export default function OGImage() {
           height: "630px",
           display: "flex",
           flexDirection: "column",
-          background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
+          background: "#0f172a",
           fontFamily: "sans-serif",
           position: "relative",
           overflow: "hidden",
         }}
       >
-        {/* Background grid pattern */}
-        <div style={{
-          position: "absolute", inset: 0,
-          backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)",
-          backgroundSize: "40px 40px",
-          display: "flex",
-        }} />
-
         {/* Red accent bar top */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", background: "#E30613", display: "flex" }} />
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "6px", background: "#E30613", display: "flex" }} />
 
-        {/* Red glow bottom-right */}
+        {/* Subtle red glow bottom-right */}
         <div style={{
-          position: "absolute", bottom: -100, right: -100,
-          width: 400, height: 400,
+          position: "absolute", bottom: -150, right: -150,
+          width: 500, height: 500,
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(227,6,19,0.15) 0%, transparent 70%)",
+          background: "rgba(227,6,19,0.12)",
           display: "flex",
         }} />
 
-        {/* Content */}
-        <div style={{ display: "flex", flexDirection: "column", padding: "60px 80px", flex: 1, position: "relative" }}>
+        {/* Left content */}
+        <div style={{ display: "flex", flexDirection: "column", padding: "64px 80px", flex: 1, position: "relative" }}>
 
-          {/* Logo area */}
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 48 }}>
-            {/* DataSkate icon placeholder */}
+          {/* Logo — text only, reliable in edge runtime */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 56 }}>
             <div style={{
-              width: 48, height: 48, borderRadius: 12,
+              width: 44, height: 44, borderRadius: 10,
               background: "#E30613",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 24, fontWeight: 900, color: "white",
-            }}>
-              D
+              fontSize: 22, fontWeight: 900, color: "white",
+            }}>DS</div>
+            <div style={{ display: "flex", gap: 0 }}>
+              <span style={{ fontSize: 20, fontWeight: 300, color: "white" }}>data</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color: "white" }}>skate</span>
             </div>
-            <span style={{ fontSize: 22, fontWeight: 700, color: "white", letterSpacing: "-0.5px" }}>
-              data<span style={{ color: "#E30613" }}>skate</span>
-            </span>
+          </div>
+
+          {/* Label */}
+          <div style={{
+            fontSize: 13, fontWeight: 700, color: "#E30613",
+            letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 20,
+            display: "flex",
+          }}>
+            Sales Support Center
           </div>
 
           {/* Main heading */}
-          <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center" }}>
-            <div style={{
-              fontSize: 14, fontWeight: 600, color: "#E30613",
-              letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 16,
-              display: "flex",
-            }}>
-              Sales Support Center
-            </div>
-            <div style={{
-              fontSize: 64, fontWeight: 800, color: "white",
-              lineHeight: 1.1, letterSpacing: "-2px", marginBottom: 24,
-              display: "flex", flexDirection: "column",
-            }}>
-              <span>DSC Action</span>
-              <span style={{ color: "#E30613" }}>Tracker</span>
-            </div>
-            <div style={{
-              fontSize: 22, color: "#94a3b8", lineHeight: 1.5, maxWidth: 600,
-              display: "flex",
-            }}>
-              One shared place to track every action, every owner, and every deadline — across all 3 workstreams.
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", marginBottom: 28 }}>
+            <span style={{ fontSize: 72, fontWeight: 800, color: "white", lineHeight: 1, letterSpacing: "-2px" }}>
+              DSC Action
+            </span>
+            <span style={{ fontSize: 72, fontWeight: 800, color: "#E30613", lineHeight: 1.1, letterSpacing: "-2px" }}>
+              Tracker
+            </span>
           </div>
 
-          {/* Bottom stats row */}
-          <div style={{ display: "flex", gap: 48, marginTop: 48 }}>
-            {[
-              { value: "52+", label: "Actions Tracked" },
-              { value: "3", label: "Workstreams" },
-              { value: "5", label: "Team Members" },
-              { value: "24hr", label: "SLA Target" },
-            ].map(stat => (
-              <div key={stat.label} style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: 28, fontWeight: 800, color: "white" }}>{stat.value}</span>
-                <span style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{stat.label}</span>
-              </div>
-            ))}
+          {/* Tagline */}
+          <div style={{
+            fontSize: 20, color: "#94a3b8", lineHeight: 1.6, maxWidth: 560,
+            display: "flex",
+          }}>
+            One shared place to track every action, every owner, and every deadline.
           </div>
         </div>
 
-        {/* Right side decorative element */}
+        {/* Right side — workstream cards */}
         <div style={{
-          position: "absolute", right: 80, top: "50%",
-          transform: "translateY(-50%)",
-          display: "flex", flexDirection: "column", gap: 10,
-          opacity: 0.15,
+          position: "absolute", right: 80, top: 0, bottom: 0,
+          display: "flex", flexDirection: "column", justifyContent: "center", gap: 14,
         }}>
-          {["AE Engagement", "Client Outreach", "Content & Assets"].map(ws => (
-            <div key={ws} style={{
-              background: "white", borderRadius: 8,
-              padding: "10px 20px", fontSize: 15, color: "#0f172a",
+          {[
+            { label: "AE Engagement", color: "#6366f1" },
+            { label: "Client Outreach", color: "#0ea5e9" },
+            { label: "Content & Assets", color: "#10b981" },
+          ].map(ws => (
+            <div key={ws.label} style={{
+              background: "rgba(255,255,255,0.07)",
+              border: `1px solid rgba(255,255,255,0.1)`,
+              borderLeft: `4px solid ${ws.color}`,
+              borderRadius: 10,
+              padding: "14px 24px",
+              fontSize: 16, color: "white",
               fontWeight: 600, display: "flex",
+              minWidth: 220,
             }}>
-              {ws}
+              {ws.label}
             </div>
           ))}
         </div>
 
         {/* Bottom URL */}
         <div style={{
-          position: "absolute", bottom: 32, right: 80,
+          position: "absolute", bottom: 32, left: 80,
           fontSize: 14, color: "#475569", display: "flex",
         }}>
           dsc.dataskate.online

@@ -574,7 +574,7 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
         )}
 
         <div className="overflow-x-auto">
-          <table style={{ borderCollapse: "collapse", fontSize: "13px", minWidth: "1400px", width: "100%" }}>
+          <table style={{ borderCollapse: "collapse", fontSize: "13px", minWidth: "1600px" }}>
             <thead className="sticky top-0 z-10">
               <tr style={{ background: "#f7f8fa", borderBottom: "2px solid #e2e5ea" }}>
                 {/* Checkbox column — admin only */}

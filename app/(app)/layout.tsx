@@ -27,7 +27,7 @@ export default async function AppLayout({
         role={profile?.role ?? "member"}
       />
       <main className="flex-1 overflow-x-auto overflow-y-auto">
-        <div className="max-w-screen-2xl mx-auto px-6 py-6 min-w-0">
+        <div className="max-w-screen-2xl mx-auto px-6 py-6">
           {children}
         </div>
       </main>

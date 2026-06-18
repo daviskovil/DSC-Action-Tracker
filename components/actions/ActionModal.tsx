@@ -18,6 +18,7 @@ const BLANK: Omit<Action, "id" | "created_at" | "updated_at" | "created_by"> = {
   title: "",
   bucket: BUCKETS[0],
   owners: [],
+  secondary_owners: [],
   due_date: null,
   status: "Not Started",
   percent_complete: 0,

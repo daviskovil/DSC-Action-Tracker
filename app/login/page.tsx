@@ -33,7 +33,7 @@ export default function LoginPage() {
       {/* Left panel — brand */}
       <div className="hidden lg:flex lg:w-1/2 bg-gray-900 flex-col items-center justify-center p-12">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="DataSkate" className="h-10 object-contain brightness-0 invert mb-8" />
+        <img src="/logo-wordmark.png" alt="DataSkate" style={{width: "200px", height: "auto", filter: "brightness(0) invert(1)", marginBottom: "2rem"}} />
         <h2 className="text-white text-2xl font-bold text-center leading-snug">
           DSC Action Tracker
         </h2>
@@ -60,7 +60,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="DataSkate" className="h-8 object-contain" />
+            <img src="/logo-wordmark.png" alt="DataSkate" style={{width: "160px", height: "auto"}} />
           </div>
 
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>

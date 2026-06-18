@@ -68,7 +68,7 @@ export default function Sidebar({ userName, role }: SidebarProps) {
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="DataSkate" className="h-7 object-contain" />
+        <img src="/logo-wordmark.png" alt="DataSkate" style={{width: "140px", height: "auto"}} />
         <p className="text-[10px] text-gray-400 mt-1 font-medium tracking-wide uppercase">
           DSC Action Tracker
         </p>

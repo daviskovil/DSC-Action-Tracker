@@ -25,7 +25,7 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="DataSkate" className="h-7 object-contain" />
+          <img src="/logo-wordmark.png" alt="DataSkate" style={{width: "130px", height: "auto"}} />
           <div className="h-8 w-px bg-gray-200" />
           <div>
             <h1 className="text-xl font-bold text-gray-900">DSC Dashboard</h1>

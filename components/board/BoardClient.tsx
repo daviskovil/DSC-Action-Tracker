@@ -46,7 +46,7 @@ export default function BoardClient({ initialActions, ownerNames }: Props) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Action Board</h1>
+          <h1 className="text-xl font-bold text-gray-900">DSC Action Board</h1>
           <p className="text-sm text-gray-500 mt-0.5">{filtered.length} of {actions.length} actions</p>
         </div>
         <AddActionButton ownerNames={ownerNames} onCreated={handleActionCreated} />

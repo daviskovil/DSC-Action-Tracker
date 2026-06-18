@@ -359,7 +359,7 @@ export default function ActionTable({ actions, allActions, onRowClick, onActionU
   const activeFilterCount = Object.values(colFilters).filter(v => v.length > 0).length;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm" style={{ overflow: "hidden" }}>
       {/* Active filter chips */}
       {activeFilterCount > 0 && (
         <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2 flex-wrap bg-brand-50/40">

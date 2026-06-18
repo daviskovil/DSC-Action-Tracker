@@ -23,7 +23,7 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push("/board");
       router.refresh();
     }
   }
@@ -41,18 +41,6 @@ export default function LoginPage() {
           One shared place for the DataSkate Sales Support Center team to track every action, every owner, every deadline.
         </p>
 
-        <div className="mt-12 grid grid-cols-3 gap-6 w-full max-w-sm">
-          {[
-            { label: "Team Members", value: "5" },
-            { label: "Action Buckets", value: "3" },
-            { label: "24hr", value: "SLA" },
-          ].map((s) => (
-            <div key={s.label} className="text-center">
-              <p className="text-brand-500 text-2xl font-bold">{s.value}</p>
-              <p className="text-gray-500 text-xs mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Right panel — form */}

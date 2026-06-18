@@ -1,10 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { BUCKETS, STATUSES, PRIORITIES, MONTHS } from "@/lib/constants";
+import { useState, useRef } from "react";
+import { BUCKETS, STATUSES, PRIORITIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { logActivity } from "@/lib/logActivity";
 import type { Action } from "@/lib/types";
+
+// ── Inline styles for status badges (avoids Tailwind purge) ─────────────────
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  Done:       { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
+  InProgress: { background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" },
+  Pending:    { background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" },
+  Dependency: { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
+};
+
+// ── Auto-compute month string from a date string ─────────────────────────────
+function monthFromDate(dateStr: string | null): string {
+  if (!dateStr) {
+    return new Date().toLocaleString("default", { month: "long" });
+  }
+  // Parse the date safely (YYYY-MM-DD)
+  const [year, month] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleString("default", { month: "long" });
+}
 
 // ── Mini formatting toolbar ──────────────────────────────────────────────────
 function FormatToolbar({ textareaRef, value, onChange }: {
@@ -46,11 +64,11 @@ function FormatToolbar({ textareaRef, value, onChange }: {
 
   return (
     <div className="flex flex-wrap gap-1.5 mb-1.5">
-      <button type="button" className={btn} title="Bullet" onClick={() => prefixLine("• ")}>• Bullet</button>
+      <button type="button" className={btn} title="Bullet"   onClick={() => prefixLine("• ")}>• Bullet</button>
       <button type="button" className={btn} title="Numbered" onClick={() => prefixLine("1. ")}>1. Number</button>
-      <button type="button" className={`${btn} font-bold`} title="Bold" onClick={() => wrapSelection("**", "**")}>B</button>
-      <button type="button" className={`${btn} italic`} title="Italic" onClick={() => wrapSelection("_", "_")}>I</button>
-      <button type="button" className={btn} title="Divider" onClick={() => {
+      <button type="button" className={`${btn} font-bold`}   title="Bold"   onClick={() => wrapSelection("**", "**")}>B</button>
+      <button type="button" className={`${btn} italic`}      title="Italic" onClick={() => wrapSelection("_", "_")}>I</button>
+      <button type="button" className={btn} title="Divider"  onClick={() => {
         const el = textareaRef.current;
         if (!el) return;
         const pos = el.selectionStart;
@@ -71,13 +89,13 @@ interface Props {
 }
 
 const BLANK: Omit<Action, "id" | "created_at" | "updated_at" | "created_by"> = {
-  month: "June",
+  month: monthFromDate(null),
   title: "",
   bucket: BUCKETS[0],
   owners: [],
   secondary_owners: [],
   due_date: null,
-  status: "Pending",
+  status: "",          // empty → "— Select —" shown
   percent_complete: 0,
   priority: "Medium",
   notes: null,
@@ -89,11 +107,7 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
-
-  // No click-outside or Escape to close — form data should never be lost accidentally.
-  // Use the × button or Cancel to dismiss.
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -108,32 +122,46 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
     }));
   }
 
+  function toggleSecondaryOwner(name: string) {
+    setForm((f) => ({
+      ...f,
+      secondary_owners: (f.secondary_owners ?? []).includes(name)
+        ? (f.secondary_owners ?? []).filter((o) => o !== name)
+        : [...(f.secondary_owners ?? []), name],
+    }));
+  }
+
+  // Auto-update month when due date changes
+  function handleDueDateChange(dateStr: string) {
+    set("due_date", dateStr || null);
+    set("month", monthFromDate(dateStr || null));
+  }
+
   async function handleSave() {
-    if (!form.title.trim()) {
-      setError("Action title is required.");
-      return;
-    }
+    if (!form.title.trim()) { setError("Action heading is required."); return; }
+    if (!form.status) { setError("Please select a status."); return; }
     setSaving(true);
     setError(null);
     const supabase = createClient();
 
     const payload = {
-      month: form.month,
-      title: form.title.trim(),
-      bucket: form.bucket,
-      owners: form.owners,
-      due_date: form.due_date || null,
-      status: form.status,
+      month:            form.month || monthFromDate(form.due_date),
+      title:            form.title.trim(),
+      bucket:           form.bucket,
+      owners:           form.owners,
+      secondary_owners: form.secondary_owners ?? [],
+      due_date:         form.due_date || null,
+      status:           form.status,
       percent_complete: form.percent_complete,
-      priority: form.priority,
-      notes: form.notes || null,
-      updated_at: new Date().toISOString(),
+      priority:         form.priority,
+      notes:            form.notes || null,
+      updated_at:       new Date().toISOString(),
     };
 
     if (isNew) {
       const { data, error: err } = await supabase
         .from("actions")
-        .insert({ ...payload, status: "Not Started", percent_complete: 0 })
+        .insert(payload)
         .select()
         .single();
       if (err || !data) {
@@ -173,11 +201,10 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
     }
   }
 
+  const statusStyle = form.status ? STATUS_STYLE[form.status] : undefined;
+
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 bg-black/40 z-50 flex items-start justify-end"
-    >
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-end">
       <div className="bg-white h-full w-full max-w-lg shadow-2xl overflow-y-auto flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
@@ -187,44 +214,53 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
 
         {/* Form */}
         <div className="flex-1 px-6 py-5 space-y-4">
-          <Field label="Title *">
+
+          {/* Action Heading */}
+          <Field label="Action Heading *">
             <input
               type="text"
               value={form.title}
               onChange={(e) => set("title", e.target.value)}
               className={inputCls}
               placeholder="Describe the action…"
+              autoFocus
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Month">
-              <select value={form.month} onChange={(e) => set("month", e.target.value)} className={inputCls}>
-                {MONTHS.map((m) => <option key={m}>{m}</option>)}
-                <option value={form.month}>{form.month}</option>
-              </select>
-            </Field>
-            <Field label="Due Date">
-              <input
-                type="date"
-                value={form.due_date ?? ""}
-                onChange={(e) => set("due_date", e.target.value || null)}
-                className={inputCls}
-              />
-            </Field>
-          </div>
+          {/* Due Date only (month auto-computes) */}
+          <Field label="Due Date">
+            <input
+              type="date"
+              value={form.due_date ?? ""}
+              onChange={(e) => handleDueDateChange(e.target.value)}
+              className={inputCls}
+            />
+            {form.due_date && (
+              <p className="text-xs text-gray-400 mt-1">Month will be set to <strong>{monthFromDate(form.due_date)}</strong></p>
+            )}
+          </Field>
 
+          {/* Workstream */}
           <Field label="Workstream">
             <select value={form.bucket} onChange={(e) => set("bucket", e.target.value)} className={inputCls}>
               {BUCKETS.map((b) => <option key={b} value={b}>{b.replace(/^Bucket \d+ - /, "")}</option>)}
             </select>
           </Field>
 
+          {/* Status + Priority */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Status">
-              <select value={form.status} onChange={(e) => set("status", e.target.value)} className={inputCls}>
-                {STATUSES.map((s) => <option key={s}>{s}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  value={form.status}
+                  onChange={(e) => set("status", e.target.value)}
+                  className={inputCls}
+                  style={statusStyle ? { ...statusStyle, fontWeight: 600 } : undefined}
+                >
+                  <option value="">— Select —</option>
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
             </Field>
             <Field label="Priority">
               <select value={form.priority} onChange={(e) => set("priority", e.target.value)} className={inputCls}>
@@ -233,18 +269,18 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
             </Field>
           </div>
 
+          {/* % Complete */}
           <Field label="% Complete">
             <input
-              type="number"
-              min={0}
-              max={100}
+              type="number" min={0} max={100}
               value={form.percent_complete}
               onChange={(e) => set("percent_complete", Number(e.target.value))}
               className={inputCls}
             />
           </Field>
 
-          <Field label="Owner(s)">
+          {/* Primary Owner(s) — multi-select toggle buttons */}
+          <Field label="Primary Owner(s)">
             <div className="flex flex-wrap gap-2">
               {ownerNames.map((name) => (
                 <button
@@ -261,9 +297,36 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
                 </button>
               ))}
             </div>
+            {form.owners.length > 0 && (
+              <p className="text-xs text-gray-400 mt-1">{form.owners.join(", ")}</p>
+            )}
           </Field>
 
-          <Field label="Notes">
+          {/* Secondary Owner(s) — multi-select toggle buttons */}
+          <Field label="Secondary Owner(s)">
+            <div className="flex flex-wrap gap-2">
+              {ownerNames.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => toggleSecondaryOwner(name)}
+                  className={`px-3 py-1 rounded-full text-sm border transition-colors ${
+                    (form.secondary_owners ?? []).includes(name)
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+            {(form.secondary_owners ?? []).length > 0 && (
+              <p className="text-xs text-gray-400 mt-1">{(form.secondary_owners ?? []).join(", ")}</p>
+            )}
+          </Field>
+
+          {/* Status Notes */}
+          <Field label="Status Notes">
             <FormatToolbar
               textareaRef={notesRef}
               value={form.notes ?? ""}
@@ -294,19 +357,14 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
                   <button onClick={() => setConfirmDelete(false)} className="text-xs text-gray-500 hover:underline">No</button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-sm text-red-500 hover:text-red-700 transition-colors"
-                >
+                <button onClick={() => setConfirmDelete(true)} className="text-sm text-red-500 hover:text-red-700 transition-colors">
                   Delete
                 </button>
               )
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
-              Cancel
-            </button>
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
             <button
               onClick={handleSave}
               disabled={saving}

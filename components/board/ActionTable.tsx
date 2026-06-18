@@ -1,8 +1,16 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { isAfter, parseISO, startOfToday, format } from "date-fns";
-import { BUCKET_BADGE, STATUS_COLORS, PRIORITY_COLORS, STATUSES, BUCKETS, PRIORITIES } from "@/lib/constants";
+import { parseISO, startOfToday, format } from "date-fns";
+import { BUCKET_BADGE, PRIORITY_COLORS, STATUSES, BUCKETS, PRIORITIES } from "@/lib/constants";
+
+// Inline styles — guaranteed to work regardless of Tailwind purging
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  Done:       { background: "#d1fae5", color: "#065f46", border: "1px solid #6ee7b7" },
+  InProgress: { background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" },
+  Pending:    { background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" },
+  Dependency: { background: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd" },
+};
 import { createClient } from "@/lib/supabase/client";
 import { logActivity } from "@/lib/logActivity";
 import type { Action } from "@/lib/types";
@@ -296,7 +304,7 @@ const COLS: ColFilter[] = [
   { key: "status",           label: "Status",   filterable: true,  filterValues: () => [...STATUSES] },
   { key: "percent_complete", label: "%",        filterable: false },
   { key: "priority",         label: "Priority", filterable: true,  filterValues: () => [...PRIORITIES] },
-  { key: "notes",            label: "Notes",    filterable: false },
+  { key: "notes",            label: "Status Notes", filterable: false },
 ];
 
 function FilterDropdown({ col, allActions, selected, onChange, onClose }: {
@@ -726,82 +734,93 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                             )}
                           </td>
 
-                          {/* Primary Owner */}
+                          {/* Primary Owner — multi-select */}
                           <td style={{ ...TD, position: "relative", whiteSpace: "nowrap" }}
                             onClick={e => { e.stopPropagation(); setOwnersPopover(ownersPopover === action.id ? null : action.id); }}>
-                            <div style={{ cursor: "pointer" }}>
-                              {action.owners[0]
-                                ? <span style={{ fontSize: 12, background: "#f3f4f6", color: "#374151", padding: "2px 8px", borderRadius: 9999, fontWeight: 500 }}>{action.owners[0]}</span>
+                            <div style={{ cursor: "pointer", display: "flex", flexWrap: "wrap", gap: 3 }}>
+                              {action.owners.length > 0
+                                ? action.owners.map(o => (
+                                    <span key={o} style={{ fontSize: 12, background: "#f3f4f6", color: "#374151", padding: "2px 8px", borderRadius: 9999, fontWeight: 500 }}>{o}</span>
+                                  ))
                                 : <span style={{ fontSize: 12, color: "#d1d5db", fontStyle: "italic" }}>Assign…</span>
                               }
                             </div>
                             {ownersPopover === action.id && (
-                              <div ref={ownersPopoverRef} className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[160px]"
+                              <div ref={ownersPopoverRef} className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[180px]"
                                 onClick={e => e.stopPropagation()}>
                                 <div className="flex items-center justify-between mb-2">
-                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Primary Owner</p>
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Primary Owner(s)</p>
                                   <button onClick={() => setOwnersPopover(null)} className="text-gray-400 hover:text-gray-700">
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                   </button>
                                 </div>
                                 {[...ALL_OWNERS, "RevOps Lead", "Content Manager"].map(owner => (
                                   <label key={owner} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
-                                    <input type="radio" name={`primary-${action.id}`} checked={action.owners[0] === owner}
-                                      onChange={() => { saveOwners(action, [owner]); setOwnersPopover(null); }}
-                                      className="accent-brand-600 cursor-pointer" />
+                                    <input type="checkbox"
+                                      checked={action.owners.includes(owner)}
+                                      onChange={() => {
+                                        const next = action.owners.includes(owner)
+                                          ? action.owners.filter(o => o !== owner)
+                                          : [...action.owners, owner];
+                                        saveOwners(action, next);
+                                      }}
+                                      className="accent-brand-600 cursor-pointer w-3.5 h-3.5" />
                                     <span className="text-sm text-gray-700">{owner}</span>
                                   </label>
                                 ))}
-                                <label className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1 border-t border-gray-100 mt-1 pt-2">
-                                  <input type="radio" name={`primary-${action.id}`} checked={!action.owners[0]}
-                                    onChange={() => { saveOwners(action, []); setOwnersPopover(null); }}
-                                    className="accent-brand-600 cursor-pointer" />
-                                  <span className="text-sm text-gray-400 italic">Unassigned</span>
-                                </label>
+                                {action.owners.length > 0 && (
+                                  <button onClick={() => { saveOwners(action, []); setOwnersPopover(null); }}
+                                    className="w-full mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400 hover:text-red-500 text-left">
+                                    Clear all
+                                  </button>
+                                )}
                               </div>
                             )}
                           </td>
 
-                          {/* Secondary Owner */}
+                          {/* Secondary Owner — multi-select */}
                           <td style={{ ...TD, position: "relative", whiteSpace: "nowrap" }}
                             onClick={e => { e.stopPropagation(); setOwnersPopover(ownersPopover === `sec-${action.id}` ? null : `sec-${action.id}`); }}>
-                            <div style={{ cursor: "pointer" }}>
+                            <div style={{ cursor: "pointer", display: "flex", flexWrap: "wrap", gap: 3 }}>
                               {(action.secondary_owners ?? []).length > 0
-                                ? <span style={{ fontSize: 12, background: "#eff6ff", color: "#1d4ed8", padding: "2px 8px", borderRadius: 9999, fontWeight: 500 }}>{action.secondary_owners[0]}</span>
+                                ? (action.secondary_owners ?? []).map(o => (
+                                    <span key={o} style={{ fontSize: 12, background: "#eff6ff", color: "#1d4ed8", padding: "2px 8px", borderRadius: 9999, fontWeight: 500 }}>{o}</span>
+                                  ))
                                 : <span style={{ fontSize: 12, color: "#d1d5db", fontStyle: "italic" }}>Add…</span>
                               }
                             </div>
                             {ownersPopover === `sec-${action.id}` && (
-                              <div ref={ownersPopoverRef} className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[160px]"
+                              <div ref={ownersPopoverRef} className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[180px]"
                                 onClick={e => e.stopPropagation()}>
                                 <div className="flex items-center justify-between mb-2">
-                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Secondary Owner</p>
+                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Secondary Owner(s)</p>
                                   <button onClick={() => setOwnersPopover(null)} className="text-gray-400 hover:text-gray-700">
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                   </button>
                                 </div>
                                 {[...ALL_OWNERS, "RevOps Lead", "Content Manager"].map(owner => (
                                   <label key={owner} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
-                                    <input type="radio" name={`sec-${action.id}`} checked={(action.secondary_owners ?? [])[0] === owner}
+                                    <input type="checkbox"
+                                      checked={(action.secondary_owners ?? []).includes(owner)}
                                       onChange={() => {
-                                        supabase.from("actions").update({ secondary_owners: [owner], updated_at: new Date().toISOString() }).eq("id", action.id).select().single()
+                                        const cur = action.secondary_owners ?? [];
+                                        const next = cur.includes(owner) ? cur.filter(o => o !== owner) : [...cur, owner];
+                                        supabase.from("actions").update({ secondary_owners: next, updated_at: new Date().toISOString() }).eq("id", action.id).select().single()
                                           .then(({ data }) => { if (data) onActionUpdated(data as Action); });
-                                        setOwnersPopover(null);
                                       }}
-                                      className="accent-brand-600 cursor-pointer" />
+                                      className="accent-blue-600 cursor-pointer w-3.5 h-3.5" />
                                     <span className="text-sm text-gray-700">{owner}</span>
                                   </label>
                                 ))}
-                                <label className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1 border-t border-gray-100 mt-1 pt-2">
-                                  <input type="radio" name={`sec-${action.id}`} checked={!(action.secondary_owners ?? []).length}
-                                    onChange={() => {
-                                      supabase.from("actions").update({ secondary_owners: [], updated_at: new Date().toISOString() }).eq("id", action.id).select().single()
-                                        .then(({ data }) => { if (data) onActionUpdated(data as Action); });
-                                      setOwnersPopover(null);
-                                    }}
-                                    className="accent-brand-600 cursor-pointer" />
-                                  <span className="text-sm text-gray-400 italic">None</span>
-                                </label>
+                                {(action.secondary_owners ?? []).length > 0 && (
+                                  <button onClick={() => {
+                                    supabase.from("actions").update({ secondary_owners: [], updated_at: new Date().toISOString() }).eq("id", action.id).select().single()
+                                      .then(({ data }) => { if (data) onActionUpdated(data as Action); });
+                                    setOwnersPopover(null);
+                                  }} className="w-full mt-2 pt-2 border-t border-gray-100 text-xs text-gray-400 hover:text-red-500 text-left">
+                                    Clear all
+                                  </button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -825,12 +844,19 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                               <select autoFocus value={editValue}
                                 onChange={e => { setEditValue(e.target.value); saveField(action, "status", e.target.value); }}
                                 className="text-xs border border-brand-400 rounded px-1.5 py-1 focus:outline-none bg-white">
+                                <option value="">— Select —</option>
                                 {STATUSES.map(s => <option key={s}>{s}</option>)}
                               </select>
                             ) : (
-                              <span className={`text-xs px-2.5 py-1 rounded-full font-medium cursor-pointer inline-flex items-center gap-1 hover:opacity-80 ${STATUS_COLORS[action.status] ?? "bg-gray-100 text-gray-600 border border-gray-200"}`}>
-                                {action.status}
-                                <svg className="w-2.5 h-2.5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                              <span
+                                style={{
+                                  ...(STATUS_STYLE[action.status] ?? { background: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }),
+                                  fontSize: 12, padding: "3px 10px", borderRadius: 9999, fontWeight: 600,
+                                  cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
+                                }}
+                              >
+                                {action.status || "— Select —"}
+                                <svg style={{ width: 10, height: 10, opacity: 0.5 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
                               </span>
                             )}
                           </td>

@@ -96,16 +96,14 @@ export default async function ActivityPage() {
                 const { icon, bg, color } = actionIcon(log.action_type);
                 return (
                   <div key={log.id}
+                    className="hover:bg-gray-50 transition-colors"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "140px 1fr 160px 180px",
                       padding: "12px 16px",
                       borderBottom: i < entries.length - 1 ? "1px solid #f3f4f6" : "none",
                       alignItems: "center",
-                      background: "white",
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "white")}
                   >
                     {/* When */}
                     <span style={{ fontSize: 12, color: "#6b7280" }}>{relativeTime(log.created_at)}</span>

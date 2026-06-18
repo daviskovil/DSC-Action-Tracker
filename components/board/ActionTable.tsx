@@ -538,7 +538,7 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm" style={{ overflow: "hidden" }}>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm" style={{ overflowX: "auto" }}>
         {/* Active filter chips */}
         {activeFilterCount > 0 && (
           <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2 flex-wrap bg-brand-50/40">
@@ -894,8 +894,8 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                             )}
                           </td>
 
-                          {/* Notes */}
-                          <td style={{ ...TD, position: "relative" }} onClick={() => !notesPopover && setNotesPopover(action.id)}>
+                          {/* Status Notes */}
+                          <td style={{ ...TD, position: "relative", minWidth: 160 }} onClick={() => !notesPopover && setNotesPopover(action.id)}>
                             <div className="cursor-pointer group/notes" style={{ minWidth: 120 }}>
                               {action.notes ? (
                                 <p style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }} className="line-clamp-2">{action.notes}</p>

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import NavBar from "@/components/NavBar";
+import Sidebar from "@/components/Sidebar";
 
 export default async function AppLayout({
   children,
@@ -21,10 +21,15 @@ export default async function AppLayout({
     .single();
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar userName={profile?.name ?? user.email ?? ""} role={profile?.role ?? "member"} />
-      <main className="flex-1 max-w-screen-xl mx-auto w-full px-4 py-6">
-        {children}
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <Sidebar
+        userName={profile?.name ?? user.email ?? ""}
+        role={profile?.role ?? "member"}
+      />
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-screen-xl mx-auto px-6 py-8">
+          {children}
+        </div>
       </main>
     </div>
   );

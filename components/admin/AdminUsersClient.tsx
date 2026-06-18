@@ -53,7 +53,7 @@ export default function AdminUsersClient({ users: initialUsers }: Props) {
                   <span
                     className={`text-xs px-2 py-0.5 rounded font-medium ${
                       user.role === "admin"
-                        ? "bg-indigo-100 text-indigo-700"
+                        ? "bg-brand-100 text-brand-700"
                         : "bg-gray-100 text-gray-600"
                     }`}
                   >
@@ -74,7 +74,7 @@ export default function AdminUsersClient({ users: initialUsers }: Props) {
                 <td className="px-4 py-3">
                   <button
                     onClick={() => toggleActive(user)}
-                    className="text-xs text-indigo-600 hover:underline"
+                    className="text-xs text-brand-600 hover:underline"
                   >
                     {user.active ? "Deactivate" : "Reactivate"}
                   </button>

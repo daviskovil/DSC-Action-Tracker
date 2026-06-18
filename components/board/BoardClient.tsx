@@ -66,7 +66,7 @@ export default function BoardClient({ initialActions, ownerNames }: Props) {
                 onClick={() => setView(v)}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors capitalize ${
                   view === v
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : "bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -121,7 +121,7 @@ export default function BoardClient({ initialActions, ownerNames }: Props) {
               onClick={() => setFilterBucket(b)}
               className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
                 filterBucket === b
-                  ? "bg-indigo-600 text-white border-indigo-600"
+                  ? "bg-brand-600 text-white border-brand-600"
                   : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               }`}
             >
@@ -174,7 +174,7 @@ function FilterSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
     >
       {options.map((o) => (
         <option key={o} value={o}>

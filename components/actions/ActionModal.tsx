@@ -197,7 +197,7 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
                   onClick={() => toggleOwner(name)}
                   className={`px-3 py-1 rounded-full text-sm border transition-colors ${
                     form.owners.includes(name)
-                      ? "bg-indigo-600 text-white border-indigo-600"
+                      ? "bg-brand-600 text-white border-brand-600"
                       : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
                   }`}
                 >
@@ -248,7 +248,7 @@ export default function ActionModal({ action, ownerNames, onSaved, onDeleted, on
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+              className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-60 transition-colors"
             >
               {saving ? "Saving…" : isNew ? "Create" : "Save"}
             </button>
@@ -269,4 +269,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputCls =
-  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white";
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white";

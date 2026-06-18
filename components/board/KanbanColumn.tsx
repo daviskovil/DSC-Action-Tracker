@@ -26,7 +26,7 @@ export default function KanbanColumn({ status, actions, onCardClick }: Props) {
       ref={setNodeRef}
       className={`rounded-xl border p-3 min-h-[200px] transition-colors ${
         COLUMN_STYLES[status] ?? "bg-gray-50 border-gray-200"
-      } ${isOver ? "ring-2 ring-indigo-400" : ""}`}
+      } ${isOver ? "ring-2 ring-brand-400" : ""}`}
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">

@@ -610,11 +610,11 @@ export default function ActionTable({ actions, allActions, role, onRowClick, onA
                   const activeFilter = (colFilters[col.key as string] ?? []).length > 0;
                   const isOpenFilter = openFilterCol === col.key;
                   return (
-                    <th key={col.key} style={{ width: colWidth[col.key as string] ?? 100, borderRight: "1px solid #e2e5ea", position: "relative", overflow: "hidden" }}>
+                    <th key={col.key} style={{ width: colWidth[col.key as string] ?? 100, borderRight: "1px solid #e2e5ea", position: "relative" }}>
                       <div style={{ display: "flex", alignItems: "center", padding: "10px 12px", gap: 4 }}>
                         <button
                           onClick={() => handleSort(col.key)}
-                          style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em", cursor: "pointer", background: "none", border: "none", padding: 0, flex: 1 }}
+                          style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em", cursor: "pointer", background: "none", border: "none", padding: 0, flex: 1, overflow: "hidden" }}
                         >
                           {col.label}
                           {sortKey === col.key
